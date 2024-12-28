@@ -1,0 +1,22 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "ChatBootWhatsapp",
+    "version": "1.0"
+  },
+  "paths": {
+    "/envia": {
+      "get": {
+        "tags": [
+          "Envia"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  },
+  "components": { }
+}

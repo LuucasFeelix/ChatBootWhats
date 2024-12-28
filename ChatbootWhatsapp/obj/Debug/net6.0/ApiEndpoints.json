@@ -1,0 +1,18 @@
+[
+  {
+    "ContainingType": "ChatBootWhatsapp.Controllers.EnviaController",
+    "Method": "enviaAsync",
+    "RelativePath": "envia",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 200
+      }
+    ]
+  }
+]
