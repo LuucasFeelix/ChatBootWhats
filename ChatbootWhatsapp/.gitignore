@@ -1,2 +1,1 @@
-# Ignore arquivos temporários, de compilação e específicos do Visual Studio
-.vs/
+﻿.vs/
