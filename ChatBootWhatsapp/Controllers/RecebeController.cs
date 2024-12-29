@@ -56,6 +56,7 @@ namespace ChatBootWhatsapp.Controllers
             //texto = texto + "telefone_whatsapp = " + telefone_whatsapp + Environment.NewLine;
             //texto = texto + "resposta = " + resposta + Environment.NewLine;
             //File.WriteAllText("texto.txt", texto);
+            
 
             DadosModel dados = new DadosModel();
             dados.insert(mensagem_recebida, resposta, id_whatsapp, telefone_whatsapp);
@@ -64,6 +65,7 @@ namespace ChatBootWhatsapp.Controllers
             response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
             return response;
         }
+
 
 
 
