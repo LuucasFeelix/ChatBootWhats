@@ -1,0 +1,14 @@
++ oi
+- Olá, bem-vindo! Escolha uma opção:\n\n1. Link do cardápio\n2. Telefones para contato\n3. Chave PIX
+
++ (1|link|cardapio|menu|pedido)
+- Olá, bem vindo(a)!\n\nSomos o Tim do Lelê Lanches de Jardinópolis.\n\nPara facilitar ainda mais seu atendimento criamos um link para melhor atendê-lo.\n\nPor favor, clique no link abaixo para ter acesso ao cardápio e também para fazer seu pedido:\n\nhttps://www.pedidosnozapp.com.br/timdolele\n\n**NÃO RECEBEMOS PEDIDOS PELO WHATSAPP, SOMENTE PELA PLATAFORMA DO LINK!**
+
++ (2|telefone|contato|celular)
+- Nossos telefones para contato são:\n(16) 99999-9999
+
++ (3|pix|chave pix|pagar)
+- Nossa chave PIX é: 16992085147
+
++ *
+- Desculpe, não entendi sua mensagem. Por favor, escolha uma das opções: 1, 2 ou 3.
