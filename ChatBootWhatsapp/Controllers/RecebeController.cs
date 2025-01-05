@@ -41,7 +41,7 @@ namespace ChatBootWhatsapp.Controllers
             string id_whatsapp = null;
             string telefone_whatsapp = null;
 
-            // Validação de mensagem recebida
+            
             if (entry?.entry != null && entry.entry.Length > 0 &&
                 entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
                 entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
@@ -55,7 +55,7 @@ namespace ChatBootWhatsapp.Controllers
                 return new { status = "Erro", mensagem = "Mensagem inválida." };
             }
 
-            // Validação de ID do WhatsApp
+            
             if (entry?.entry != null && entry.entry.Length > 0 &&
                 entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
                 entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
@@ -68,7 +68,7 @@ namespace ChatBootWhatsapp.Controllers
                 Console.WriteLine("ID do WhatsApp está nulo ou vazio.");
             }
 
-            // Validação do telefone do WhatsApp
+            
             if (entry?.entry != null && entry.entry.Length > 0 &&
                 entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
                 entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
@@ -81,7 +81,7 @@ namespace ChatBootWhatsapp.Controllers
                 Console.WriteLine("Número de telefone do WhatsApp está nulo ou vazio.");
             }
 
-            // Inicialização do RiveScript com tratamento de exceção
+            
             string resposta = string.Empty;
             try
             {
@@ -89,7 +89,7 @@ namespace ChatBootWhatsapp.Controllers
                 bot.loadFile("restaurante.rive");
                 bot.sortReplies();
 
-                // Validação da mensagem recebida antes de obter a resposta do bot
+
                 if (!string.IsNullOrEmpty(mensagem_recebida))
                 {
                     resposta = bot.reply("local-user", mensagem_recebida);
@@ -105,7 +105,6 @@ namespace ChatBootWhatsapp.Controllers
                 return new { status = "Erro", mensagem = "Falha ao processar a resposta do bot." };
             }
 
-            // Inserir dados no banco de dados
             try
             {
                 DadosModel dados = new DadosModel();
@@ -117,7 +116,7 @@ namespace ChatBootWhatsapp.Controllers
                 return new { status = "Erro", mensagem = "Falha ao salvar dados no banco." };
             }
 
-            // Enviar mensagem de resposta
+
             try
             {
                 enviaAsync(telefone_whatsapp, resposta);
