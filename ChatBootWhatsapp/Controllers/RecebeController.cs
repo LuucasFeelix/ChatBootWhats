@@ -1,114 +1,64 @@
 ﻿using ChatBootWhatsapp.Models;
 using Microsoft.AspNetCore.Mvc;
-using System.IO;
-using System.Net;
-using System.Net.Http.Headers;
-using System.Xml.Linq;
+using System;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using RiveScript;
+
 namespace ChatBootWhatsapp.Controllers
 {
-    public class RecebeController
+    public class RecebeController : ControllerBase
     {
-        
+        private readonly WhatsappService _whatsappService;
+        private readonly RiveScript.RiveScript _bot;
+
+        public RecebeController(WhatsappService whatsappService)
+        {
+            _whatsappService = whatsappService;
+            _bot = new RiveScript.RiveScript(true);
+            _bot.loadFile("restaurante.rive");
+            _bot.sortReplies();
+        }
+
         [HttpGet]
-        
         [Route("webhook")]
-       
         public string Webhook(
             [FromQuery(Name = "hub.mode")] string mode,
             [FromQuery(Name = "hub.challenge")] string challenge,
-            [FromQuery(Name = "hub.verify_token")] string verify_token
-        )
+            [FromQuery(Name = "hub.verify_token")] string verify_token)
         {
-            
-            if (verify_token.Equals("oi"))
-            {
-                return challenge;
-            }
-            else
-            {
-                return "";
-            }
+            return verify_token.Equals("oi") ? challenge : "";
         }
-        
+
         [HttpPost]
-        
         [Route("webhook")]
-
-        public dynamic Dados([FromBody] WebHookResponseModel entry)
+        public async Task<dynamic> Dados([FromBody] WebHookResponseModel entry)
         {
-            string mensagem_recebida = null;
-            string id_whatsapp = null;
-            string telefone_whatsapp = null;
+            string mensagemRecebida = ObterValorDaMensagem(entry, m => m.text?.body);
+            string idWhatsapp = ObterValorDaMensagem(entry, m => m.id);
+            string telefoneWhatsapp = ObterValorDaMensagem(entry, m => m.from);
 
-            
-            if (entry?.entry != null && entry.entry.Length > 0 &&
-                entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
-                entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
-                entry.entry[0].changes[0].value.messages[0]?.text?.body != null)
-            {
-                mensagem_recebida = entry.entry[0].changes[0].value.messages[0].text.body;
-            }
-            else
+            if (string.IsNullOrEmpty(mensagemRecebida))
             {
                 Console.WriteLine("Mensagem recebida está nula ou vazia.");
                 return new { status = "Erro", mensagem = "Mensagem inválida." };
             }
 
-            
-            if (entry?.entry != null && entry.entry.Length > 0 &&
-                entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
-                entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
-                entry.entry[0].changes[0].value.messages[0]?.id != null)
-            {
-                id_whatsapp = entry.entry[0].changes[0].value.messages[0].id;
-            }
-            else
-            {
-                Console.WriteLine("ID do WhatsApp está nulo ou vazio.");
-            }
-
-            
-            if (entry?.entry != null && entry.entry.Length > 0 &&
-                entry.entry[0]?.changes != null && entry.entry[0].changes.Length > 0 &&
-                entry.entry[0].changes[0]?.value?.messages != null && entry.entry[0].changes[0].value.messages.Length > 0 &&
-                entry.entry[0].changes[0].value.messages[0]?.from != null)
-            {
-                telefone_whatsapp = entry.entry[0].changes[0].value.messages[0].from;
-            }
-            else
-            {
-                Console.WriteLine("Número de telefone do WhatsApp está nulo ou vazio.");
-            }
-
-            
-            string resposta = string.Empty;
+            string resposta;
             try
             {
-                var bot = new RiveScript.RiveScript(true);
-                bot.loadFile("restaurante.rive");
-                bot.sortReplies();
-
-
-                if (!string.IsNullOrEmpty(mensagem_recebida))
-                {
-                    resposta = bot.reply("local-user", mensagem_recebida);
-                }
-                else
-                {
-                    resposta = "Desculpe, não entendi sua mensagem.";
-                }
+                resposta = _bot.reply("local-user", mensagemRecebida) ?? "Desculpe, não entendi sua mensagem.";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao inicializar o RiveScript ou gerar resposta: {ex.Message}");
+                Console.WriteLine($"Erro ao processar resposta do bot: {ex.Message}");
                 return new { status = "Erro", mensagem = "Falha ao processar a resposta do bot." };
             }
 
             try
             {
                 DadosModel dados = new DadosModel();
-                dados.insert(mensagem_recebida, resposta, id_whatsapp, telefone_whatsapp);
+                dados.insert(mensagemRecebida, resposta, idWhatsapp, telefoneWhatsapp);
             }
             catch (Exception ex)
             {
@@ -116,10 +66,9 @@ namespace ChatBootWhatsapp.Controllers
                 return new { status = "Erro", mensagem = "Falha ao salvar dados no banco." };
             }
 
-
             try
             {
-                enviaAsync(telefone_whatsapp, resposta);
+                await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, resposta);
             }
             catch (Exception ex)
             {
@@ -129,24 +78,9 @@ namespace ChatBootWhatsapp.Controllers
             return new { status = "Sucesso", resposta };
         }
 
-        public async Task enviaAsync(string telefone, string mensagem)
+        private static string ObterValorDaMensagem(WebHookResponseModel entry, Func<Messages, string> selector)
         {
-            telefone = telefone.Replace("55", "55");
-
-            mensagem = mensagem.Replace("\r\n", "\\n").Replace("\n", "\\n");
-            string token = "EAAPkLZBJSP9kBO8mnlsiJ4C51mMbeykKa9frNRmq7LAfkraWR2gVAy3AE7uO5fOtSSaRtblN6ZCDA9ZChAaFZAyZAoOERiJ3GF8d5z54gyNcAxvu6B6GnnVSltzKBiBZBlL4JFy6p5kOfW0nBaDr9eSg86o9LWNk40zvRBZCQgcxLouwpJLIq87hFFlrGneBNdlrQZDZD";
-
-            string idTelefone = "502112759653572";
-            HttpClient client = new HttpClient();
-            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://graph.facebook.com/v21.0/" + idTelefone + "/messages");
-            request.Headers.Add("Authorization", "Bearer " + token);
-            string json = "{\"messaging_product\": \"whatsapp\",\"recipient_type\": \"individual\",\"to\": \"" + telefone + "\",\"type\": \"text\",\"text\": {\"body\": \"" + mensagem + "\"}}";
-            request.Content = new StringContent(json);
-            request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            HttpResponseMessage response = await client.SendAsync(request);
-
-            string responseBody = await response.Content.ReadAsStringAsync();
+            return entry?.entry?.FirstOrDefault()?.changes?.FirstOrDefault()?.value?.messages?.FirstOrDefault() is Messages msg ? selector(msg): null;
         }
-
     }
 }
