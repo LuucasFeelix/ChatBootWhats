@@ -1,4 +1,4 @@
-+ oi
++ (oi|boa noite|boa tarde|ola)
 - Olá, bem-vindo! Escolha uma opção:\n1. Link do cardápio\n2. Telefones para contato\n3. Chave PIX
 
 + (1|link|cardapio|menu|pedido)

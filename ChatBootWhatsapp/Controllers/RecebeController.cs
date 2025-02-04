@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Xml.Linq;
 using RiveScript;
+using System.Text.RegularExpressions;
 namespace ChatBootWhatsapp.Controllers
 {
     public class RecebeController
@@ -131,7 +132,7 @@ namespace ChatBootWhatsapp.Controllers
 
         public async Task enviaAsync(string telefone, string mensagem)
         {
-            telefone = telefone.Replace("55", "55");
+            telefone = FormatarNumero(telefone); // Ajusta o número antes de enviar
 
             mensagem = mensagem.Replace("\r\n", "\\n").Replace("\n", "\\n");
             string token = "EAAPkLZBJSP9kBO8mnlsiJ4C51mMbeykKa9frNRmq7LAfkraWR2gVAy3AE7uO5fOtSSaRtblN6ZCDA9ZChAaFZAyZAoOERiJ3GF8d5z54gyNcAxvu6B6GnnVSltzKBiBZBlL4JFy6p5kOfW0nBaDr9eSg86o9LWNk40zvRBZCQgcxLouwpJLIq87hFFlrGneBNdlrQZDZD";
@@ -140,12 +141,28 @@ namespace ChatBootWhatsapp.Controllers
             HttpClient client = new HttpClient();
             HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://graph.facebook.com/v21.0/" + idTelefone + "/messages");
             request.Headers.Add("Authorization", "Bearer " + token);
-            string json = "{\"messaging_product\": \"whatsapp\",\"recipient_type\": \"individual\",\"to\": \"" + telefone + "\",\"type\": \"text\",\"text\": {\"body\": \"" + mensagem + "\"}}";
+
+            string json = $"{{\"messaging_product\": \"whatsapp\",\"recipient_type\": \"individual\",\"to\": \"{telefone}\",\"type\": \"text\",\"text\": {{\"body\": \"{mensagem}\"}}}}";
             request.Content = new StringContent(json);
             request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-            HttpResponseMessage response = await client.SendAsync(request);
 
+            HttpResponseMessage response = await client.SendAsync(request);
             string responseBody = await response.Content.ReadAsStringAsync();
+        }
+
+        private string FormatarNumero(string telefone)
+        {
+            if (string.IsNullOrWhiteSpace(telefone))
+                return "";
+
+            telefone = Regex.Replace(telefone, @"\D", "");
+
+            if (!telefone.StartsWith("55"))
+            {
+                telefone = "55" + telefone;
+            }
+
+            return telefone;
         }
 
     }
