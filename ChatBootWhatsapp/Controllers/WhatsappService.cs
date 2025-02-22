@@ -2,29 +2,43 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-
+using Newtonsoft.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace ChatBootWhatsapp.Controllers
 {
     public class WhatsappService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _token = "SEU_TOKEN_AQUI"; // Melhor definir isso via configuração
-        private readonly string _idTelefone = "502112759653572";
+        private readonly string _token;
+        private readonly string _idTelefone;
 
-        public WhatsappService(HttpClient httpClient)
+        public WhatsappService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
+
+
+            _token = configuration["Whatsapp:Token"];
+            _idTelefone = configuration["Whatsapp:IdTelefone"];
         }
 
         public async Task<bool> EnviarMensagemAsync(string telefone, string mensagem)
         {
             telefone = FormatarNumero(telefone);
-            mensagem = mensagem.Replace("\r\n", "\\n").Replace("\n", "\\n");
+            mensagem = FormatarMensagem(mensagem);
 
-            var json = $"{{\"messaging_product\": \"whatsapp\",\"recipient_type\": \"individual\",\"to\": \"{telefone}\",\"type\": \"text\",\"text\": {{\"body\": \"{mensagem}\"}}}}";
+            var message = new
+            {
+                messaging_product = "whatsapp",
+                recipient_type = "individual",
+                to = telefone,
+                type = "text",
+                text = new { body = mensagem }
+            };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, $"https://graph.facebook.com/v21.0/{_idTelefone}/messages")
+            var json = JsonConvert.SerializeObject(message);
+
+            var request = new HttpRequestMessage(HttpMethod.Post, $"https://graph.facebook.com/v22.0/{_idTelefone}/messages")
             {
                 Content = new StringContent(json, Encoding.UTF8, "application/json")
             };
@@ -38,6 +52,11 @@ namespace ChatBootWhatsapp.Controllers
         {
             telefone = Regex.Replace(telefone, @"\D", "");
             return telefone.StartsWith("55") ? telefone : "55" + telefone;
+        }
+
+        private string FormatarMensagem(string mensagem)
+        {
+            return mensagem;
         }
     }
 }

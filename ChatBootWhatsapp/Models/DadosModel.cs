@@ -1,27 +1,36 @@
-﻿namespace ChatBootWhatsapp.Models
+﻿using MySqlConnector;
+using System;
+
+namespace ChatBootWhatsapp.Models
 {
-    using MySqlConnector;
     public class DadosModel
     {
-        public void insert(string mensagem_recebida, string mensagem_enviada, string id_whatsapp, string telefone_whatsapp)
+        private readonly string _connectionString = "Server=localhost;User ID=root;Password=;Database=chatboot";
+
+        public bool Insert(string mensagemRecebida, string mensagemEnviada, string idWhatsapp, string telefoneWhatsapp)
         {
-            var connection = new MySqlConnection("Server=localhost;User ID=root;Password=;Database=chatboot");
             try
             {
-                var command = connection.CreateCommand();
-                command.CommandText = "INSERT INTO `registros` " +
-                    "(`mensagem_recebida`        ,`mensagem_enviada`        ,`id_whatsapp`         , `telefone_whatsapp`) VALUES " +
-                    "('" + mensagem_recebida + "','" + mensagem_enviada + "', '" + id_whatsapp + "', '" + telefone_whatsapp + "');";
-                connection.Open();
-                command.ExecuteNonQuery();
+                using (var connection = new MySqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = "INSERT INTO registros (mensagem_recebida, mensagem_enviada, id_whatsapp, telefone_whatsapp) VALUES (@mensagemRecebida, @mensagemEnviada, @idWhatsapp, @telefoneWhatsapp)";
+                        command.Parameters.AddWithValue("@mensagemRecebida", mensagemRecebida);
+                        command.Parameters.AddWithValue("@mensagemEnviada", mensagemEnviada);
+                        command.Parameters.AddWithValue("@idWhatsapp", idWhatsapp);
+                        command.Parameters.AddWithValue("@telefoneWhatsapp", telefoneWhatsapp);
+
+                        int rowsAffected = command.ExecuteNonQuery();
+                        return rowsAffected > 0; // Retorna true se a inserção foi bem-sucedida
+                    }
+                }
             }
             catch (Exception ex)
             {
-                //return ex.Message;
-            }
-            finally
-            {
-                connection.Close();
+                Console.WriteLine($"Erro ao salvar no banco: {ex.Message}");
+                return false;
             }
         }
     }

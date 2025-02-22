@@ -1,24 +1,24 @@
 [
   {
-    "ContainingType": "ChatBootWhatsapp.Controllers.EnviaController",
-    "Method": "enviaAsync",
-    "RelativePath": "envia",
-    "HttpMethod": "GET",
+    "ContainingType": "ChatBootWhatsapp.Controllers.EnviarController",
+    "Method": "EnviarMensagem",
+    "RelativePath": "api/Enviar/enviarMensagem",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": [
+    "Parameters": [
       {
-        "Type": "System.Void",
-        "MediaTypes": [],
-        "StatusCode": 200
+        "Name": "request",
+        "Type": "ChatBootWhatsapp.Controllers.EnviarMensagemRequest",
+        "IsRequired": true
       }
-    ]
+    ],
+    "ReturnTypes": []
   },
   {
     "ContainingType": "ChatBootWhatsapp.Controllers.RecebeController",
     "Method": "Webhook",
-    "RelativePath": "webhook",
+    "RelativePath": "api/Recebe/webhook",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -39,22 +39,12 @@
         "IsRequired": false
       }
     ],
-    "ReturnTypes": [
-      {
-        "Type": "System.String",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 200
-      }
-    ]
+    "ReturnTypes": []
   },
   {
     "ContainingType": "ChatBootWhatsapp.Controllers.RecebeController",
     "Method": "Dados",
-    "RelativePath": "webhook",
+    "RelativePath": "api/Recebe/webhook",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,

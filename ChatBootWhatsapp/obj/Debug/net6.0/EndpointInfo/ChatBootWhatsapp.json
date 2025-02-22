@@ -5,11 +5,30 @@
     "version": "1.0"
   },
   "paths": {
-    "/envia": {
-      "get": {
+    "/api/Enviar/enviarMensagem": {
+      "post": {
         "tags": [
-          "Envia"
+          "Enviar"
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnviarMensagemRequest"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnviarMensagemRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnviarMensagemRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"
@@ -17,7 +36,7 @@
         }
       }
     },
-    "/webhook": {
+    "/api/Recebe/webhook": {
       "get": {
         "tags": [
           "Recebe"
@@ -47,24 +66,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "application/json": {
-                "schema": {
-                  "type": "string"
-                }
-              },
-              "text/json": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
+            "description": "Success"
           }
         }
       },
@@ -118,6 +120,20 @@
             "items": {
               "$ref": "#/components/schemas/Change"
             },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "EnviarMensagemRequest": {
+        "type": "object",
+        "properties": {
+          "telefone": {
+            "type": "string",
+            "nullable": true
+          },
+          "mensagem": {
+            "type": "string",
             "nullable": true
           }
         },
