@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using RiveScript;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.SignalR;
+using ChatBootWhatsapp.Hubs;
 
 namespace ChatBootWhatsapp.Controllers
 {
@@ -16,11 +18,13 @@ namespace ChatBootWhatsapp.Controllers
         private readonly WhatsappService _whatsappService;
         private readonly RiveScript.RiveScript _bot;
         private readonly ILogger<RecebeController> _logger;
+        private readonly IHubContext<ChatHub> _hubContext; // Injeção do SignalR Hub
 
-        public RecebeController(WhatsappService whatsappService, ILogger<RecebeController> logger)
+        public RecebeController(WhatsappService whatsappService, ILogger<RecebeController> logger, IHubContext<ChatHub> hubContext)
         {
             _whatsappService = whatsappService;
             _logger = logger;
+            _hubContext = hubContext; // Inicialização do SignalR Hub
             _bot = new RiveScript.RiveScript(true);
 
             try
@@ -66,7 +70,6 @@ namespace ChatBootWhatsapp.Controllers
             {
                 _logger.LogInformation($"JSON recebido: {JsonConvert.SerializeObject(entry)}");
 
-
                 if (entry == null || entry.entry == null || entry.entry.FirstOrDefault()?.changes?.FirstOrDefault()?.value?.messages == null)
                 {
                     _logger.LogWarning("Campo 'messages' ausente ou nulo no JSON recebido.");
@@ -111,8 +114,13 @@ namespace ChatBootWhatsapp.Controllers
 
                     string respostaFormatada = resposta.Trim();
 
+                    // Envia a mensagem para o WhatsApp
                     await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, respostaFormatada);
                     _logger.LogInformation($"Mensagem enviada para {telefoneWhatsapp} com sucesso.");
+
+                    // Notifica o usuário via SignalR
+                    await _hubContext.Clients.User(telefoneWhatsapp).SendAsync("ReceiveMessage", respostaFormatada);
+                    _logger.LogInformation($"Notificação enviada para {telefoneWhatsapp} via SignalR.");
                 }
                 catch (Exception ex)
                 {
