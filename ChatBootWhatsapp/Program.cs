@@ -1,9 +1,7 @@
 using ChatBootWhatsapp.Controllers;
-using ChatBootWhatsapp.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSignalR();
 
 builder.Services.AddHttpClient();
 
@@ -21,8 +19,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.MapHub<ChatHub>("/chatHub");
 
 app.UseAuthorization();
 

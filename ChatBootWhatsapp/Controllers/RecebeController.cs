@@ -7,8 +7,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using RiveScript;
 using Newtonsoft.Json;
-using Microsoft.AspNetCore.SignalR;
-using ChatBootWhatsapp.Hubs;
 
 namespace ChatBootWhatsapp.Controllers
 {
@@ -19,17 +17,11 @@ namespace ChatBootWhatsapp.Controllers
         private readonly WhatsappService _whatsappService;
         private readonly RiveScript.RiveScript _bot;
         private readonly ILogger<RecebeController> _logger;
-        private readonly IHubContext<ChatHub> _hubContext; // Injeção do SignalR Hub
 
-        // HashSet para armazenar IDs de mensagens já processadas
-        private static HashSet<string> _processedMessageIds = new HashSet<string>();
-        private static DateTime _lastCleanup = DateTime.Now;
-
-        public RecebeController(WhatsappService whatsappService, ILogger<RecebeController> logger, IHubContext<ChatHub> hubContext)
+        public RecebeController(WhatsappService whatsappService, ILogger<RecebeController> logger)
         {
             _whatsappService = whatsappService;
             _logger = logger;
-            _hubContext = hubContext; // Inicialização do SignalR Hub
             _bot = new RiveScript.RiveScript(true);
 
             try
@@ -75,8 +67,8 @@ namespace ChatBootWhatsapp.Controllers
             {
                 _logger.LogInformation($"JSON recebido: {JsonConvert.SerializeObject(entry, Formatting.Indented)}");
 
-                // Verifica se o campo entry está presente
-                if (entry?.entry == null || !entry.entry.Any())
+
+                if (entry == null || entry.entry == null || entry.entry.FirstOrDefault()?.changes?.FirstOrDefault()?.value?.messages == null)
                 {
                     _logger.LogWarning("Campo 'entry' ausente ou nulo no JSON recebido. Ignorando a requisição.");
                     return Ok();
@@ -162,25 +154,30 @@ namespace ChatBootWhatsapp.Controllers
                                 continue; // Ignora erros de processamento
                             }
 
-                            // Envia a resposta para o WhatsApp
-                            try
-                            {
-                                bool sucesso = await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, resposta);
-                                if (sucesso)
-                                {
-                                    _logger.LogInformation($"Mensagem enviada para {telefoneWhatsapp} com sucesso.");
-                                }
-                                else
-                                {
-                                    _logger.LogError($"Falha ao enviar mensagem para {telefoneWhatsapp}.");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError($"Erro ao enviar mensagem para {telefoneWhatsapp}: {ex.Message}. StackTrace: {ex.StackTrace}");
-                            }
-                        }
+                try
+                {
+                    DadosModel dados = new DadosModel();
+
+                    bool salvo = dados.Insert(mensagemRecebida, resposta.Replace("\\n", "\n"), idWhatsapp, telefoneWhatsapp);
+
+                    if (salvo)
+                    {
+                        _logger.LogInformation($"Mensagem salva no banco: Recebida: {mensagemRecebida}, Enviada: {resposta}, ID: {idWhatsapp}, Telefone: {telefoneWhatsapp}");
                     }
+                    else
+                    {
+                        _logger.LogError("Falha ao salvar mensagem no banco, mas continuando com o envio da resposta.");
+                    }
+
+                    string respostaFormatada = resposta.Trim();
+
+                    await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, respostaFormatada);
+                    _logger.LogInformation($"Mensagem enviada para {telefoneWhatsapp} com sucesso.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Erro ao salvar dados no banco ou enviar mensagem: {ex.Message}. StackTrace: {ex.StackTrace}");
+                    return StatusCode(500, new { status = "Erro", mensagem = "Erro ao salvar no banco ou enviar mensagem." });
                 }
 
                 return Ok(new { status = "Sucesso" });
