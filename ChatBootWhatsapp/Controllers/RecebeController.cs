@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using RiveScript;
@@ -19,6 +20,10 @@ namespace ChatBootWhatsapp.Controllers
         private readonly RiveScript.RiveScript _bot;
         private readonly ILogger<RecebeController> _logger;
         private readonly IHubContext<ChatHub> _hubContext; // Injeção do SignalR Hub
+
+        // HashSet para armazenar IDs de mensagens já processadas
+        private static HashSet<string> _processedMessageIds = new HashSet<string>();
+        private static DateTime _lastCleanup = DateTime.Now;
 
         public RecebeController(WhatsappService whatsappService, ILogger<RecebeController> logger, IHubContext<ChatHub> hubContext)
         {
@@ -68,72 +73,133 @@ namespace ChatBootWhatsapp.Controllers
         {
             try
             {
-                _logger.LogInformation($"JSON recebido: {JsonConvert.SerializeObject(entry)}");
+                _logger.LogInformation($"JSON recebido: {JsonConvert.SerializeObject(entry, Formatting.Indented)}");
 
-                if (entry == null || entry.entry == null || entry.entry.FirstOrDefault()?.changes?.FirstOrDefault()?.value?.messages == null)
+                // Verifica se o campo entry está presente
+                if (entry?.entry == null || !entry.entry.Any())
                 {
-                    _logger.LogWarning("Campo 'messages' ausente ou nulo no JSON recebido.");
-                    return BadRequest(new { status = "Erro", mensagem = "Campo 'messages' ausente ou nulo." });
+                    _logger.LogWarning("Campo 'entry' ausente ou nulo no JSON recebido. Ignorando a requisição.");
+                    return Ok();
                 }
 
-                string mensagemRecebida = ObterValorDaMensagem(entry, m => m.text?.body);
-                string idWhatsapp = ObterValorDaMensagem(entry, m => m.id);
-                string telefoneWhatsapp = ObterValorDaMensagem(entry, m => m.from);
+                // Limpa IDs de mensagens processadas periodicamente
+                CleanupProcessedMessages();
 
-                if (string.IsNullOrEmpty(mensagemRecebida))
+                // Processa cada entrada
+                foreach (var ent in entry.entry)
                 {
-                    _logger.LogWarning("Mensagem recebida está nula ou vazia.");
-                    return BadRequest(new { status = "Erro", mensagem = "Mensagem inválida." });
-                }
-
-                string resposta;
-                try
-                {
-                    resposta = _bot.reply("local-user", mensagemRecebida) ?? "Desculpe, não entendi sua mensagem.";
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Erro ao processar resposta do bot: {ex.Message}. StackTrace: {ex.StackTrace}");
-                    return StatusCode(500, new { status = "Erro", mensagem = "Falha ao processar a resposta do bot." });
-                }
-
-                try
-                {
-                    DadosModel dados = new DadosModel();
-
-                    bool salvo = dados.Insert(mensagemRecebida, resposta.Replace("\\n", "\n"), idWhatsapp, telefoneWhatsapp);
-
-                    if (salvo)
+                    // Verifica se o campo changes está presente
+                    if (ent?.changes == null || !ent.changes.Any())
                     {
-                        _logger.LogInformation($"Mensagem salva no banco: Recebida: {mensagemRecebida}, Enviada: {resposta}, ID: {idWhatsapp}, Telefone: {telefoneWhatsapp}");
-                    }
-                    else
-                    {
-                        _logger.LogError("Falha ao salvar mensagem no banco, mas continuando com o envio da resposta.");
+                        _logger.LogWarning("Campo 'changes' ausente ou nulo no JSON recebido. Ignorando a entrada.");
+                        continue;
                     }
 
-                    string respostaFormatada = resposta.Trim();
+                    // Processa cada mudança
+                    foreach (var change in ent.changes)
+                    {
+                        // Verifica se o campo value está presente
+                        if (change?.value == null)
+                        {
+                            _logger.LogWarning("Campo 'value' ausente ou nulo no JSON recebido. Ignorando a mudança.");
+                            continue;
+                        }
 
-                    // Envia a mensagem para o WhatsApp
-                    await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, respostaFormatada);
-                    _logger.LogInformation($"Mensagem enviada para {telefoneWhatsapp} com sucesso.");
+                        // Verifica se é uma notificação de status
+                        if (change.value.statuses != null && change.value.statuses.Any())
+                        {
+                            foreach (var status in change.value.statuses)
+                            {
+                                _logger.LogInformation($"Status recebido: {status.status} para a mensagem com ID {status.id}");
+                                // Aqui você pode adicionar lógica para lidar com os status, se necessário.
+                            }
+                            continue; // Ignora o restante do processamento, pois é uma notificação de status
+                        }
 
-                    // Notifica o usuário via SignalR
-                    await _hubContext.Clients.User(telefoneWhatsapp).SendAsync("ReceiveMessage", respostaFormatada);
-                    _logger.LogInformation($"Notificação enviada para {telefoneWhatsapp} via SignalR.");
+                        // Verifica se o campo messages está presente
+                        var messages = change.value.messages;
+                        if (messages == null || !messages.Any())
+                        {
+                            _logger.LogInformation("Campo 'messages' ausente ou vazio. Esta pode ser uma notificação de status ou entrega.");
+                            continue;
+                        }
+
+                        // Processa cada mensagem
+                        foreach (var message in messages)
+                        {
+                            string idWhatsapp = message.id;
+
+                            // Verifica se a mensagem já foi processada
+                            if (_processedMessageIds.Contains(idWhatsapp))
+                            {
+                                _logger.LogInformation($"Mensagem com ID {idWhatsapp} já foi processada. Ignorando.");
+                                continue;
+                            }
+
+                            // Adiciona o ID da mensagem à lista de processados
+                            _processedMessageIds.Add(idWhatsapp);
+
+                            // Verifica se o campo 'text' está presente e não é nulo
+                            if (message.text == null || string.IsNullOrEmpty(message.text.body))
+                            {
+                                _logger.LogWarning("Campo 'text' ausente ou nulo na mensagem. Ignorando.");
+                                continue; // Ignora mensagens inválidas
+                            }
+
+                            string mensagemRecebida = message.text.body; // Agora podemos acessar message.text.body com segurança
+                            string telefoneWhatsapp = message.from;
+
+                            // Obtém a resposta do RiveScript
+                            string resposta;
+                            try
+                            {
+                                resposta = _bot.reply("local-user", mensagemRecebida) ?? "Desculpe, não entendi sua mensagem.";
+                                _logger.LogInformation($"Resposta do RiveScript: {resposta}");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"Erro ao processar resposta do bot: {ex.Message}. StackTrace: {ex.StackTrace}");
+                                continue; // Ignora erros de processamento
+                            }
+
+                            // Envia a resposta para o WhatsApp
+                            try
+                            {
+                                bool sucesso = await _whatsappService.EnviarMensagemAsync(telefoneWhatsapp, resposta);
+                                if (sucesso)
+                                {
+                                    _logger.LogInformation($"Mensagem enviada para {telefoneWhatsapp} com sucesso.");
+                                }
+                                else
+                                {
+                                    _logger.LogError($"Falha ao enviar mensagem para {telefoneWhatsapp}.");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"Erro ao enviar mensagem para {telefoneWhatsapp}: {ex.Message}. StackTrace: {ex.StackTrace}");
+                            }
+                        }
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Erro ao salvar dados no banco ou enviar mensagem: {ex.Message}. StackTrace: {ex.StackTrace}");
-                    return StatusCode(500, new { status = "Erro", mensagem = "Erro ao salvar no banco ou enviar mensagem." });
-                }
 
-                return Ok(new { status = "Sucesso", resposta, idWhatsapp, telefoneWhatsapp });
+                return Ok(new { status = "Sucesso" });
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Erro inesperado: {ex.Message}. StackTrace: {ex.StackTrace}");
                 return StatusCode(500, new { status = "Erro", mensagem = "Erro interno no servidor." });
+            }
+        }
+
+        // Método para limpar IDs de mensagens processadas periodicamente
+        private void CleanupProcessedMessages()
+        {
+            if ((DateTime.Now - _lastCleanup).TotalHours > 1) // Limpa a cada hora
+            {
+                _processedMessageIds.Clear();
+                _lastCleanup = DateTime.Now;
+                _logger.LogInformation("IDs de mensagens processadas limpos.");
             }
         }
 

@@ -7,7 +7,7 @@ namespace ChatBootWhatsapp.Models
     {
         private readonly string _connectionString = "Server=localhost;User ID=root;Password=;Database=chatboot";
 
-        public bool Insert(string mensagemRecebida, string mensagemEnviada, string idWhatsapp, string telefoneWhatsapp)
+        public bool InsertStatus(string idWhatsapp, string status, string timestamp, string recipient_id)
         {
             try
             {
@@ -16,11 +16,11 @@ namespace ChatBootWhatsapp.Models
                     connection.Open();
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = "INSERT INTO registros (mensagem_recebida, mensagem_enviada, id_whatsapp, telefone_whatsapp) VALUES (@mensagemRecebida, @mensagemEnviada, @idWhatsapp, @telefoneWhatsapp)";
-                        command.Parameters.AddWithValue("@mensagemRecebida", mensagemRecebida);
-                        command.Parameters.AddWithValue("@mensagemEnviada", mensagemEnviada);
+                        command.CommandText = "INSERT INTO status_mensagens (id_whatsapp, status, timestamp, recipient_id) VALUES (@idWhatsapp, @status, @timestamp, @recipient_id)";
                         command.Parameters.AddWithValue("@idWhatsapp", idWhatsapp);
-                        command.Parameters.AddWithValue("@telefoneWhatsapp", telefoneWhatsapp);
+                        command.Parameters.AddWithValue("@status", status);
+                        command.Parameters.AddWithValue("@timestamp", timestamp);
+                        command.Parameters.AddWithValue("@recipient_id", recipient_id);
 
                         int rowsAffected = command.ExecuteNonQuery();
                         return rowsAffected > 0; // Retorna true se a inserção foi bem-sucedida
@@ -29,7 +29,7 @@ namespace ChatBootWhatsapp.Models
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Erro ao salvar no banco: {ex.Message}");
+                Console.WriteLine($"Erro ao salvar status no banco: {ex.Message}");
                 return false;
             }
         }
@@ -58,12 +58,25 @@ namespace ChatBootWhatsapp.Models
         public long page_id { get; set; }
         public int adgroup_id { get; set; }
         public Messages[] messages { get; set; }
+        public Status[] statuses { get; set; }
     }
     public class Messages
     {
         public string id { get; set; }
         public string from { get; set; }
         public Text text { get; set; }
+    }
+    public class Status
+    {
+        public string id { get; set; }
+        public string status { get; set; }
+        public string timestamp { get; set; } 
+        public string recipient_id { get; set; }
+    }
+    public class Delivery
+    {
+        public string id { get; set; }
+        public string status { get; set; }
     }
     public class Text
     {

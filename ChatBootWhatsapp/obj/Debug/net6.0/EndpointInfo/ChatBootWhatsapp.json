@@ -156,6 +156,28 @@
         },
         "additionalProperties": false
       },
+      "Status": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "timestamp": {
+            "type": "string",
+            "nullable": true
+          },
+          "recipient_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "Text": {
         "type": "object",
         "properties": {
@@ -197,6 +219,13 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/Messages"
+            },
+            "nullable": true
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Status"
             },
             "nullable": true
           }
